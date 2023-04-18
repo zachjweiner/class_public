@@ -480,9 +480,8 @@ int perturbations_output_data(
           class_store_double(dataptr,tk[ppt->index_tp_delta_dcdm],ppt->has_source_delta_dcdm,storeidx);
           class_store_double(dataptr,tk[ppt->index_tp_delta_dr],ppt->has_source_delta_dr,storeidx);
           class_store_double(dataptr,tk[ppt->index_tp_delta_scf],ppt->has_source_delta_scf,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_phi_scf],ppt->has_scf,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_phi_over_phi_scf],ppt->has_scf,storeidx);
-          class_store_double(dataptr,tk[ppt->index_tp_delta_phi_prime_scf],ppt->has_scf,storeidx);
+          class_store_double(dataptr,tk[ppt->index_tp_delta_phi_scf],ppt->has_source_delta_phi_scf,storeidx);
+          class_store_double(dataptr,tk[ppt->index_tp_delta_phi_prime_scf],ppt->has_source_delta_phi_prime_scf,storeidx);
           class_store_double(dataptr,tk[ppt->index_tp_delta_m],ppt->has_source_delta_m,storeidx);
           class_store_double(dataptr,tk[ppt->index_tp_delta_tot],ppt->has_source_delta_tot,storeidx);
           class_store_double(dataptr,tk[ppt->index_tp_phi],ppt->has_source_phi,storeidx);
@@ -1189,6 +1188,8 @@ int perturbations_indices(
   ppt->has_source_delta_dcdm = _FALSE_;
   ppt->has_source_delta_fld = _FALSE_;
   ppt->has_source_delta_scf = _FALSE_;
+  ppt->has_source_delta_phi_scf = _FALSE_;
+  ppt->has_source_delta_phi_prime_scf = _FALSE_;
   ppt->has_source_delta_dr = _FALSE_;
   ppt->has_source_delta_ur = _FALSE_;
   ppt->has_source_delta_idr = _FALSE_;
@@ -1297,7 +1298,11 @@ int perturbations_indices(
         if (pba->has_fld == _TRUE_)
           ppt->has_source_delta_fld = _TRUE_;
         if (ppt->has_scf == _TRUE_)
+        {
           ppt->has_source_delta_scf = _TRUE_;
+          ppt->has_source_delta_phi_scf = _TRUE_;
+          ppt->has_source_delta_phi_prime_scf = _TRUE_;
+        }
         if (pba->has_ur == _TRUE_)
           ppt->has_source_delta_ur = _TRUE_;
         if (pba->has_idr == _TRUE_)
@@ -1404,7 +1409,6 @@ int perturbations_indices(
       class_define_index(ppt->index_tp_delta_fld,  ppt->has_source_delta_fld, index_type,1);
       class_define_index(ppt->index_tp_delta_scf,  ppt->has_source_delta_scf, index_type,1);
       class_define_index(ppt->index_tp_delta_phi_scf,  ppt->has_source_delta_scf, index_type,1);
-      class_define_index(ppt->index_tp_delta_phi_over_phi_scf,  ppt->has_source_delta_scf, index_type,1);
       class_define_index(ppt->index_tp_delta_phi_prime_scf,  ppt->has_source_delta_scf, index_type,1);
       class_define_index(ppt->index_tp_delta_dr,   ppt->has_source_delta_dr,  index_type,1);
       class_define_index(ppt->index_tp_delta_ur,   ppt->has_source_delta_ur,  index_type,1);
@@ -8119,13 +8123,11 @@ int perturbations_sources(
         if (ppw->approx[ppw->index_ap_scalarfa] == (int)scalarfa_on)
         {
             _set_source_(ppt->index_tp_delta_phi_scf) = 0.;
-            _set_source_(ppt->index_tp_delta_phi_over_phi_scf) = 0.;
             _set_source_(ppt->index_tp_delta_phi_prime_scf) = 0.;
         }
         else
         {
             _set_source_(ppt->index_tp_delta_phi_scf) = y[ppw->pv->index_pt_phi_scf];
-            _set_source_(ppt->index_tp_delta_phi_over_phi_scf) = y[ppw->pv->index_pt_phi_scf]/ppw->pvecback[pba->index_bg_phi_scf];
             _set_source_(ppt->index_tp_delta_phi_prime_scf) = y[ppw->pv->index_pt_phi_prime_scf];
         }
     }
