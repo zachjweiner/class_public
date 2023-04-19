@@ -469,62 +469,6 @@ int background_functions(
     rho_r += pvecback[pba->index_bg_rho_dr];
   }
 
-  /* Scalar field */
-  if (pba->has_scf == _TRUE_)
-  {
-    phi = pvecback_B[pba->index_bi_phi_scf];
-    phi_prime = pvecback_B[pba->index_bi_phi_prime_scf];
-    pvecback[pba->index_bg_phi_scf] = phi;
-    pvecback[pba->index_bg_phi_prime_scf] = phi_prime;
-    pvecback[pba->index_bg_V_scf] = V_scf(pba, phi);
-    pvecback[pba->index_bg_dV_scf] = dV_scf(pba, phi);
-    pvecback[pba->index_bg_ddV_scf] = ddV_scf(pba, phi);
-
-    double kin = phi_prime * phi_prime / (2. * a * a) / 3.;
-    double pot = V_scf(pba, phi) / 3.;
-    pvecback[pba->index_bg_rho_scf_kg] = kin + pot;
-    pvecback[pba->index_bg_p_scf_kg] = kin - pot;
-    pvecback[pba->index_bg_rho_scf_fld] = pvecback_B[pba->index_bi_rho_scf];
-    double w_scf = scf_equation_of_state(pba, pvecback);
-    pvecback[pba->index_bg_p_scf_fld] = w_scf * pvecback_B[pba->index_bi_rho_scf];
-
-    if (pba->scf_mode == klein_gordon)
-    {
-        pvecback[pba->index_bg_rho_scf] = pvecback[pba->index_bg_rho_scf_kg];
-        pvecback[pba->index_bg_p_scf] = pvecback[pba->index_bg_p_scf_kg];
-    }
-    else if (pba->scf_mode == scalar_as_fluid)
-    {
-        pvecback[pba->index_bg_rho_scf] = pvecback[pba->index_bg_rho_scf_fld];
-        pvecback[pba->index_bg_p_scf] = pvecback[pba->index_bg_p_scf_fld];
-    }
-    else if (pba->scf_mode == klein_gordon_and_fluid)
-    {
-        double t = pvecback_B[pba->index_bi_time];
-        double weight = (1. + tanh((t - pba->scf_smoothing_midpoint) / pba->scf_smoothing_width)) / 2.;
-
-        pvecback[pba->index_bg_rho_scf] = (
-            (1. - weight) * pvecback[pba->index_bg_rho_scf_kg]
-            + weight * pvecback[pba->index_bg_rho_scf_fld]
-        );
-        pvecback[pba->index_bg_p_scf] = (
-            (1. - weight) * pvecback[pba->index_bg_p_scf_kg]
-            + weight * pvecback[pba->index_bg_p_scf_fld]
-        );
-    }
-
-    if (pba->scf_gravitates)
-    {
-        rho_tot += pvecback[pba->index_bg_rho_scf];
-        p_tot += pvecback[pba->index_bg_p_scf];
-        dp_dloga += 0.0; /** <-- This depends on a_prime_over_a, so we cannot add it now! */
-        //divide relativistic & nonrelativistic (not very meaningful for oscillatory models)
-        // rho_r += 3.*pvecback[pba->index_bg_p_scf]; //field pressure contributes radiation
-        // rho_m += pvecback[pba->index_bg_rho_scf] - 3.* pvecback[pba->index_bg_p_scf]; //the rest contributes matter
-        //printf(" a= %e, Omega_scf = %f, \n ",a, pvecback[pba->index_bg_rho_scf]/rho_tot );
-    }
-  }
-
   /* ncdm */
   if (pba->has_ncdm == _TRUE_) {
 
@@ -606,6 +550,108 @@ int background_functions(
     rho_tot += pvecback[pba->index_bg_rho_idr];
     p_tot += (1./3.) * pvecback[pba->index_bg_rho_idr];
     rho_r += pvecback[pba->index_bg_rho_idr];
+  }
+
+
+  /* Scalar field */
+  if (pba->has_scf == _TRUE_)
+  {
+    phi = pvecback_B[pba->index_bi_phi_scf];
+    phi_prime = pvecback_B[pba->index_bi_phi_prime_scf];
+    pvecback[pba->index_bg_phi_scf] = phi;
+    pvecback[pba->index_bg_phi_prime_scf] = phi_prime;
+    pvecback[pba->index_bg_V_scf] = V_scf(pba, phi);
+    pvecback[pba->index_bg_dV_scf] = dV_scf(pba, phi);
+    pvecback[pba->index_bg_ddV_scf] = ddV_scf(pba, phi);
+
+    pvecback[pba->index_bg_H] = sqrt(rho_tot-pba->K/a/a);
+    pvecback[pba->index_bg_H_prime] = - (3./2.) * (rho_tot + p_tot) * a + pba->K/a;
+
+    double kin = phi_prime * phi_prime / (2. * a * a) / 3.;
+    double pot = V_scf(pba, phi) / 3.;
+    pvecback[pba->index_bg_rho_scf_kg] = kin + pot;
+    pvecback[pba->index_bg_p_scf_kg] = kin - pot;
+    pvecback[pba->index_bg_rho_scf_fld] = pvecback_B[pba->index_bi_rho_scf];
+
+    if (pba->scf_mode == klein_gordon)
+    {
+        // already know the pressure exactly
+        pvecback[pba->index_bg_rho_scf] = pvecback[pba->index_bg_rho_scf_kg];
+        pvecback[pba->index_bg_p_scf] = pvecback[pba->index_bg_p_scf_kg];
+    }
+    else
+    {
+        double weight = 1.;
+        if (pba->scf_mode == klein_gordon_and_fluid)
+        {
+            double t = pvecback_B[pba->index_bi_time];
+            weight = (1. + tanh((t - pba->scf_smoothing_midpoint) / pba->scf_smoothing_width)) / 2.;
+        }
+        pvecback[pba->index_bg_rho_scf] = (
+            (1. - weight) * pvecback[pba->index_bg_rho_scf_kg]
+            + weight * pvecback[pba->index_bg_rho_scf_fld]
+        );
+
+        // scf_equation_of_state depends on H_prime in fluid mode
+        // when scf_eos_type == scf_eos_improved
+        // start by computing H and H_prime with w_scf = 0
+        // then iteratively recompute w_scf, P_scf, and H and H_prime
+        // since w_scf ~ (m / H)^2, this procedure should converge quickly
+        // but may run into issues if P_scf / P_tot is large, i.e.,
+        // when m / H_star is small and \rho_scf / \rho_tot is large
+        // if the scf doesn't gravitate or the EOS does not require H_prime, the loop
+        // will exit after a single iteration
+
+        double _rho_tot = rho_tot;
+        double p_tot_no_scf = p_tot;
+
+        // first guess: zero scf pressure
+        if (pba->scf_gravitates) _rho_tot = rho_tot + pvecback[pba->index_bg_rho_scf];
+        pvecback[pba->index_bg_H] = sqrt(_rho_tot-pba->K/a/a);
+        pvecback[pba->index_bg_H_prime] = - (3./2.) * (_rho_tot + p_tot_no_scf) * a + pba->K/a;
+        double w_scf = scf_equation_of_state(pba, pvecback);
+
+        double error = 1.;
+        double error_thresh = 1e-12;
+        int n_iter = 0;
+        int MAX_ITER = 20;
+        while (error >= error_thresh)
+        {
+            pvecback[pba->index_bg_p_scf_fld] = w_scf * pvecback_B[pba->index_bi_rho_scf];
+            pvecback[pba->index_bg_p_scf] = (
+                (1. - weight) * pvecback[pba->index_bg_p_scf_kg]
+                + weight * pvecback[pba->index_bg_p_scf_fld]
+            );
+            double _p_tot = p_tot_no_scf;
+            if (pba->scf_gravitates) _p_tot += pvecback[pba->index_bg_p_scf];
+
+            pvecback[pba->index_bg_H_prime] = - (3./2.) * (_rho_tot + _p_tot) * a + pba->K/a;
+
+            double w_old = w_scf;
+            w_scf = scf_equation_of_state(pba, pvecback);
+            if(w_scf < error_thresh) error = 0.;  // if w_scf < error, we don't care
+            else error = fabs(w_old / w_scf - 1.);
+
+            // printf("H'=%.16e\n", pvecback[pba->index_bg_H_prime]);
+            // printf("old=%.16e new=%.16e err=%.3e\n", w_old, w_scf, error);
+
+            n_iter += 1;
+            class_test(n_iter > MAX_ITER,
+                       pba->error_message,
+                       "w_scf failing to converge, error=%e", error);
+        }
+    }
+
+    if (pba->scf_gravitates)
+    {
+        rho_tot += pvecback[pba->index_bg_rho_scf];
+        p_tot += pvecback[pba->index_bg_p_scf];
+        dp_dloga += 0.0; /** <-- This depends on a_prime_over_a, so we cannot add it now! */
+        //divide relativistic & nonrelativistic (not very meaningful for oscillatory models)
+        // rho_r += 3.*pvecback[pba->index_bg_p_scf]; //field pressure contributes radiation
+        // rho_m += pvecback[pba->index_bg_rho_scf] - 3.* pvecback[pba->index_bg_p_scf]; //the rest contributes matter
+        //printf(" a= %e, Omega_scf = %f, \n ",a, pvecback[pba->index_bg_rho_scf]/rho_tot );
+    }
   }
 
   /** - compute expansion rate H from Friedmann equation: this is the
