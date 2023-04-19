@@ -3349,6 +3349,9 @@ int input_read_parameters_species(struct file_content * pfc,
     class_read_flag("scf_gravitates", pba->scf_gravitates);
     ppt->scf_gravitates = pba->scf_gravitates;
 
+    class_read_double("scf_smoothing_width_m", pba->scf_smoothing_width);
+    pba->scf_smoothing_width /= pba->m_scf;
+
     class_test((ppt->has_scf==_TRUE_ && ppt->gauge != synchronous),
                errmsg, "must use synchronous gauge for scf perturbations");
 
@@ -5875,6 +5878,7 @@ int input_default_params(struct background *pba,
   pba->m_scf = pba->m_scf_eV * _eV_over_inv_Mpc_;
   pba->thetai_scf = 1.;
   pba->dthetai_scf = 0.;
+  pba->scf_smoothing_width = 1.;
 
   pba->scf_mode_switch_m_over_H = 1000.;
   pba->scf_eos_type = scf_eos_improved;

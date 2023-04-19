@@ -480,19 +480,37 @@ int background_functions(
     pvecback[pba->index_bg_dV_scf] = dV_scf(pba, phi);
     pvecback[pba->index_bg_ddV_scf] = ddV_scf(pba, phi);
 
+    double kin = phi_prime * phi_prime / (2. * a * a) / 3.;
+    double pot = V_scf(pba, phi) / 3.;
+    pvecback[pba->index_bg_rho_scf_kg] = kin + pot;
+    pvecback[pba->index_bg_p_scf_kg] = kin - pot;
+    pvecback[pba->index_bg_rho_scf_fld] = pvecback_B[pba->index_bi_rho_scf];
+    double w_scf = scf_equation_of_state(pba, pvecback);
+    pvecback[pba->index_bg_p_scf_fld] = w_scf * pvecback_B[pba->index_bi_rho_scf];
+
     if (pba->scf_mode == klein_gordon)
     {
-        double kin = phi_prime * phi_prime / (2. * a * a) / 3.;
-        double pot = V_scf(pba, phi) / 3.;
-        pvecback[pba->index_bg_rho_scf] = kin + pot;
-        pvecback[pba->index_bg_p_scf] = kin - pot;
-        // pvecback_B[pba->index_bi_rho_scf] = pvecback[pba->index_bg_rho_scf];
+        pvecback[pba->index_bg_rho_scf] = pvecback[pba->index_bg_rho_scf_kg];
+        pvecback[pba->index_bg_p_scf] = pvecback[pba->index_bg_p_scf_kg];
     }
-    else
+    else if (pba->scf_mode == scalar_as_fluid)
     {
-        double w_scf = scf_equation_of_state(pba, pvecback);
-        pvecback[pba->index_bg_rho_scf] = pvecback_B[pba->index_bi_rho_scf];
-        pvecback[pba->index_bg_p_scf] = w_scf * pvecback_B[pba->index_bi_rho_scf];
+        pvecback[pba->index_bg_rho_scf] = pvecback[pba->index_bg_rho_scf_fld];
+        pvecback[pba->index_bg_p_scf] = pvecback[pba->index_bg_p_scf_fld];
+    }
+    else if (pba->scf_mode == klein_gordon_and_fluid)
+    {
+        double t = pvecback_B[pba->index_bi_time];
+        double weight = (1. + tanh((t - pba->scf_smoothing_midpoint) / pba->scf_smoothing_width)) / 2.;
+
+        pvecback[pba->index_bg_rho_scf] = (
+            (1. - weight) * pvecback[pba->index_bg_rho_scf_kg]
+            + weight * pvecback[pba->index_bg_rho_scf_fld]
+        );
+        pvecback[pba->index_bg_p_scf] = (
+            (1. - weight) * pvecback[pba->index_bg_p_scf_kg]
+            + weight * pvecback[pba->index_bg_p_scf_fld]
+        );
     }
 
     if (pba->scf_gravitates)
@@ -1085,6 +1103,10 @@ int background_indices(
   class_define_index(pba->index_bg_rho_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_p_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_p_prime_scf,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_rho_scf_kg,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_p_scf_kg,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_rho_scf_fld,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_p_scf_fld,pba->has_scf,index_bg,1);
 
   /* - index for Lambda */
   class_define_index(pba->index_bg_rho_lambda,pba->has_lambda,index_bg,1);
@@ -2738,6 +2760,12 @@ int background_sources(
              pba->error_message);
 
   double *pvecback = pbpaw->pvecback;
+  // this magic number simply ensures that
+  // |tanh((t - scf_smoothing_midpoint) / scf_smoothing_width| - 1 ~ 10^-13
+  // at the boundaries of the klein_gordon_and_fluid phase
+  // so that no artifacts are introduced when switching to and from the weighted average
+  // of the KG and fluid energy densities and pressures
+  double num_widths = 15.;
   if (pba->has_scf == _TRUE_)
   {
     double _m_over_H = pba->m_scf / pvecback[pba->index_bg_H];
@@ -2748,16 +2776,37 @@ int background_sources(
         y[pba->index_bi_rho_scf] = scf_match_to_fluid_energy_density(pba, pvecback);
         pba->rho_scf_cs_at_switch = y[pba->index_bi_rho_scf];
         scf_match_to_cos_sin(pba, pvecback, pba->phi_scf_cs_at_switch, pba->phi_dot_scf_cs_at_switch);
+        double t = y[pba->index_bi_time];
+        pba->scf_smoothing_midpoint = t + num_widths * pba->scf_smoothing_width;
+        pba->scf_t_switch_to_fluid_mode = t + 2. * num_widths * pba->scf_smoothing_width;
 
         // pvecback[pba->index_bg_rho_scf] = y[pba->index_bi_rho_scf];
         if (pba->background_verbose > 0) {
-            printf("Switching on scalar fluid approximation (background) at tau=%e, rho_scf=%e\n", pba->scalarfa_switch_tau, y[pba->index_bi_rho_scf]);
+            printf("Switching on scalar fluid approximation (background) at tau=%e, rho_scf=%e\n", y[pba->index_bi_tau], y[pba->index_bi_rho_scf]);
         }
     }
-    else if (pba->scf_mode == klein_gordon_and_fluid && _m_over_H >= 2. * pba->scf_mode_switch_m_over_H)
+    else if (pba->scf_mode == klein_gordon_and_fluid && y[pba->index_bi_time] > pba->scf_t_switch_to_fluid_mode)
     {
+        if (pba->background_verbose > 0) {
+            printf("Switching off hybrid scalar fluid/KG phase (background) at tau=%e, rho_scf=%e\n", pba->scalarfa_switch_tau, y[pba->index_bi_rho_scf]);
+        }
         pba->scf_mode = scalar_as_fluid;
     }
+    if (pba->scf_mode == scalar_as_fluid)
+    {
+        class_test(y[pba->index_bi_time] < pba->scf_t_switch_to_fluid_mode,
+             pba->error_message,
+             "Somehow in scalar_as_fluid mode before scf_t_switch_to_fluid_mode"
+        );
+    }
+    if (pba->scf_mode == klein_gordon_and_fluid)
+    {
+        class_test(y[pba->index_bi_time] > pba->scf_t_switch_to_fluid_mode,
+             pba->error_message,
+             "Somehow still in klein_gordon_and_fluid mode after scf_t_switch_to_fluid_mode"
+        );
+    }
+
   }
 
   return _SUCCESS_;
