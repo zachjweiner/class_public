@@ -7495,6 +7495,9 @@ int perturbations_total_stress_energy(
         }
         else // as fluid; same in both gauges
         {
+            rho_plus_p_scf = ppw->pvecback[pba->index_bg_rho_scf_fld] + ppw->pvecback
+            [pba->index_bg_p_scf_fld];
+            rho_scf = ppw->pvecback[pba->index_bg_rho_scf_fld];
             double w_scf = scf_equation_of_state(pba, ppw->pvecback);
             double cs2_scf = scf_sound_speed_squared(ppt->scf_cs_type, pba, ppw->pvecback, k);
             // rho_scf = scf_match_to_fluid_energy_density(pba, ppw->pvecback);

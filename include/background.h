@@ -136,6 +136,9 @@ struct background
   enum scf_integration_mode scf_mode;
   short scf_gravitates;
   double scalarfa_switch_tau;
+  double scf_smoothing_width;
+  double scf_smoothing_midpoint;
+  double scf_t_switch_to_fluid_mode;
   double rho_scf_cs_at_switch;
   double phi_scf_cs_at_switch[2];
   double phi_dot_scf_cs_at_switch[2];
@@ -197,6 +200,10 @@ struct background
   int index_bg_rho_scf;       /**< scalar field energy density */
   int index_bg_p_scf;         /**< scalar field pressure */
   int index_bg_p_prime_scf;         /**< scalar field pressure */
+  int index_bg_rho_scf_kg;
+  int index_bg_p_scf_kg;
+  int index_bg_rho_scf_fld;
+  int index_bg_p_scf_fld;
 
   int index_bg_rho_ncdm1;     /**< density of first ncdm species (others contiguous) */
   int index_bg_p_ncdm1;       /**< pressure of first ncdm species (others contiguous) */
