@@ -5561,7 +5561,8 @@ double scf_sound_speed_squared(
         case scf_cs_phi:
             return cs2_improved;
         case scf_cs_improved:
-            return cs2_improved - 3./4. * H_dot / pow(pba->m_scf, 2.);
+            // return cs2_improved - 3./4. * H_dot / pow(pba->m_scf, 2.);
+            return cs2_improved - 1./4. * H_dot / pow(pba->m_scf, 2.) + 3./4. * pow(H / pba->m_scf, 2.);
         case scf_cs_H_improvement:
             return cs2_improved + 5./4. * pow(H / pba->m_scf, 2.);
         case scf_cs_standard:
