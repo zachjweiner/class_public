@@ -2818,10 +2818,7 @@ int background_sources(
     if (pba->scf_mode == klein_gordon && _m_over_H >= pba->scf_mode_switch_m_over_H)
     {
         pba->scf_mode = klein_gordon_and_fluid;
-        pba->scalarfa_switch_tau = y[pba->index_bi_tau];
         y[pba->index_bi_rho_scf] = scf_match_to_fluid_energy_density(pba, pvecback);
-        pba->rho_scf_cs_at_switch = y[pba->index_bi_rho_scf];
-        scf_match_to_cos_sin(pba, pvecback, pba->phi_scf_cs_at_switch, pba->phi_dot_scf_cs_at_switch);
         double t = y[pba->index_bi_time];
         pba->scf_smoothing_midpoint = t + num_widths * pba->scf_smoothing_width;
         pba->scf_t_switch_to_fluid_mode = t + 2. * num_widths * pba->scf_smoothing_width;
@@ -2829,6 +2826,22 @@ int background_sources(
         // pvecback[pba->index_bg_rho_scf] = y[pba->index_bi_rho_scf];
         if (pba->background_verbose > 0) {
             printf("Switching on scalar fluid approximation (background) at tau=%e, rho_scf=%e\n", y[pba->index_bi_tau], y[pba->index_bi_rho_scf]);
+        }
+    }
+    // mark the perturbations switch time just after the midpoint
+    // last condition ensures this is only called once, since
+    // scalarfa_switch_tau is initialized to 1e100 and is set in the body
+    else if (
+        pba->scf_mode == klein_gordon_and_fluid
+        && y[pba->index_bi_time] > pba->scf_smoothing_midpoint
+        && y[pba->index_bi_tau] < pba->scalarfa_switch_tau
+    )
+    {
+        pba->scalarfa_switch_tau = y[pba->index_bi_tau];
+        pba->rho_scf_cs_at_switch = y[pba->index_bi_rho_scf];
+        scf_match_to_cos_sin(pba, pvecback, pba->phi_scf_cs_at_switch, pba->phi_dot_scf_cs_at_switch);
+        if (pba->background_verbose > 0) {
+            printf("Perturbations will switch to scalar fluid approximation at tau=%e, rho_scf=%e\n", pba->scalarfa_switch_tau, pba->rho_scf_cs_at_switch);
         }
     }
     else if (pba->scf_mode == klein_gordon_and_fluid && y[pba->index_bi_time] > pba->scf_t_switch_to_fluid_mode)
