@@ -3733,8 +3733,7 @@ int perturbations_find_approximation_switches(
 
           }
 
-          // FIXME: check index is for scalarfa
-          if (fabs(mid / pba->scalarfa_switch_tau - 1.) < 2. * precision)
+          if (index_ap == ppw->index_ap_scalarfa && fabs(mid / pba->scalarfa_switch_tau - 1.) < 2. * precision)
           {
               mid = pba->scalarfa_switch_tau;
           }
