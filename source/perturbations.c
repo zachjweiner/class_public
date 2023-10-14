@@ -5764,21 +5764,18 @@ int perturbations_initial_conditions(struct precision * ppr,
 
       if (ppt->has_scf == _TRUE_)
       {
-        /** - ---> Canonical field (solving for the perturbations):
-         *  initial perturbations set to zero, they should reach the attractor soon enough.
-         *  - --->  TODO: Incorporate the attractor IC from 1004.5509.
-         *  delta_phi \f$ = -(a/k)^2/\phi'(\rho + p)\theta \f$,
-         *  delta_phi_prime \f$ = a^2/\phi' \f$ (delta_rho_phi + V'delta_phi),
-         *  and assume theta, delta_rho as for perfect fluid
-         *  with \f$ c_s^2 = 1 \f$ and w = 1/3 (ASSUMES radiation TRACKING)
-         */
-
-        ppw->pv->y[ppw->pv->index_pt_phi_scf] = 0.;
-        /*  a*a/k/k/ppw->pvecback[pba->index_bg_phi_prime_scf]*k*ktau_three/4.*1./(4.-6.*(1./3.)+3.*1.) * (ppw->pvecback[pba->index_bg_rho_scf] + ppw->pvecback[pba->index_bg_p_scf])* ppr->curvature_ini * s2_squared; */
-
-        ppw->pv->y[ppw->pv->index_pt_phi_prime_scf] = 0.;
-        /* delta_fld expression * rho_scf with the w = 1/3, c_s = 1
-           a*a/ppw->pvecback[pba->index_bg_phi_prime_scf]*( - ktau_two/4.*(1.+1./3.)*(4.-3.*1.)/(4.-6.*(1/3.)+3.*1.)*ppw->pvecback[pba->index_bg_rho_scf] - ppw->pvecback[pba->index_bg_dV_scf]*ppw->pv->y[ppw->pv->index_pt_phi_scf])* ppr->curvature_ini * s2_squared; */
+            // assumes slow roll solution for background
+            double dV = ppw->pvecback[pba->index_bg_dV_scf];
+            ppw->pv->y[ppw->pv->index_pt_phi_scf] = (
+                ppr->curvature_ini * s2_squared
+                * dV * pba->Omega0_r * pba->H0 * pba->H0 / 420. / pow(k, 4.)
+                * pow(k * tau, 6.)
+            );
+            ppw->pv->y[ppw->pv->index_pt_phi_prime_scf] = (
+                ppr->curvature_ini * s2_squared
+                * dV * pba->Omega0_r * pba->H0 * pba->H0 / 70. / pow(k, 3.)
+                * pow(k * tau, 5.)
+            );
       }
 
       /* all relativistic relics: ur, early ncdm, dr */
