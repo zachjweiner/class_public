@@ -1013,7 +1013,7 @@ int background_indices(
       pba->has_dr = _TRUE_;
   }
 
-  if (pba->Omega0_scf != 0.)
+  if (pba->Omega0_scf != 0. || pba->f_scf > 0.)
     pba->has_scf = _TRUE_;
 
   pba->scf_mode = klein_gordon;  // always start in KG mode
