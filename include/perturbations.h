@@ -30,6 +30,7 @@ enum tca_idm_dr_flags {tca_idm_dr_on, tca_idm_dr_off};
 enum rsa_idr_flags {rsa_idr_off, rsa_idr_on};
 enum ufa_flags {ufa_off, ufa_on};
 enum ncdmfa_flags {ncdmfa_off, ncdmfa_on};
+enum scalarfa_flags {scalarfa_off, scalarfa_on};
 
 //@}
 
@@ -46,6 +47,25 @@ enum rsa_idr_method {rsa_idr_none,rsa_idr_MD};  /* for the idm-idr case */
 enum ufa_method {ufa_mb,ufa_hu,ufa_CLASS,ufa_none};
 enum ncdmfa_method {ncdmfa_mb,ncdmfa_hu,ncdmfa_CLASS,ncdmfa_none};
 enum tensor_methods {tm_photons_only,tm_massless_approximation,tm_exact};
+enum scf_sound_speed_type {scf_cs_standard, scf_cs_phi, scf_cs_H_improvement, scf_cs_improved};
+
+double scf_sound_speed_squared(
+    enum scf_sound_speed_type scf_cs_type,
+    struct background *pba, double *pvecback, double k
+);
+
+void scf_match_perturbations_to_cos_sin(
+    struct background *pba, double *pvecback, double k,
+    double delta_phi, double delta_phi_prime, double metric_continuity,
+    double *phi_cs, double *dphi_cs,
+    double *delta_phi_cs, double *delta_dphi_cs
+);
+
+void scf_match_to_fluid_perturbations(
+    struct background *pba, double *pvecback, double k,
+    double delta_phi, double delta_phi_prime, double metric_continuity,
+    double *delta_scf, double *Theta_scf
+);
 
 //@}
 
@@ -195,6 +215,7 @@ struct perturbations
   //@{
 
   enum possible_gauges gauge; /**< gauge in which to perform this calculation */
+  enum possible_gauges output_gauge; /**< gauge in which to output perturbation variables in this calculation */
 
   //@}
 
@@ -289,6 +310,9 @@ struct perturbations
   int index_tp_delta_dcdm;/**< index value for delta of DCDM */
   int index_tp_delta_fld;  /**< index value for delta of dark energy */
   int index_tp_delta_scf;  /**< index value for delta of scalar field */
+  int index_tp_delta_phi_scf;
+  int index_tp_delta_phi_over_phi_scf;
+  int index_tp_delta_phi_prime_scf;
   int index_tp_delta_dr; /**< index value for delta of decay radiation */
   int index_tp_delta_ur; /**< index value for delta of ultra-relativistic neutrinos/relics */
   int index_tp_delta_idr; /**< index value for delta of interacting dark radiation */
@@ -438,6 +462,9 @@ struct perturbations
 
   ErrorMsg error_message; /**< zone for writing error messages */
 
+  short has_scf;
+  short scf_gravitates;
+  enum scf_sound_speed_type scf_cs_type;
   //@}
 
 };
@@ -474,6 +501,9 @@ struct perturbations_vector
   int index_pt_Gamma_fld;  /**< unique dark energy dynamical variable in PPF case */
   int index_pt_phi_scf;  /**< scalar field density */
   int index_pt_phi_prime_scf;  /**< scalar field velocity */
+  int index_pt_delta_scf;
+  int index_pt_theta_scf;
+  int index_pt_big_theta_scf;
   int index_pt_delta_ur; /**< density of ultra-relativistic neutrinos/relics */
   int index_pt_theta_ur; /**< velocity of ultra-relativistic neutrinos/relics */
   int index_pt_shear_ur; /**< shear of ultra-relativistic neutrinos/relics */
@@ -601,6 +631,12 @@ struct perturbations_workspace
   double S_fld;                /**< S quantity sourcing Gamma_prime evolution in PPF scheme (equivalent to eq. 15 in 0808.3125) */
   double Gamma_prime_fld;      /**< Gamma_prime in PPF scheme (equivalent to eq. 14 in 0808.3125) */
 
+  double delta_scf;
+  double theta_scf;
+  double delta_rho_scf;
+  double delta_p_scf;
+  double rho_plus_p_theta_scf;
+
   FILE * perturbations_output_file; /**< filepointer to output file*/
   int index_ikout;            /**< index for output k value (when k_output_values is set) */
 
@@ -627,6 +663,7 @@ struct perturbations_workspace
   int index_ap_rsa_idr; /**< index for dark radiation streaming approximation */
   int index_ap_ufa; /**< index for ur fluid approximation */
   int index_ap_ncdmfa; /**< index for ncdm fluid approximation */
+  int index_ap_scalarfa;
   int ap_size;      /**< number of relevant approximations for a given mode */
 
   int * approx;     /**< array of approximation flags holding at a given time: approx[index_ap] */

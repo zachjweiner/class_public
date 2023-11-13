@@ -525,7 +525,7 @@ int input_shooting(struct file_content * pfc,
                                        "theta_s_100",
                                        "Omega_dcdmdr",
                                        "omega_dcdmdr",
-                                       "Omega_scf",
+                                    //    "Omega_scf",
                                        "Omega_ini_dcdm",
                                        "omega_ini_dcdm"};
 
@@ -534,7 +534,7 @@ int input_shooting(struct file_content * pfc,
                                         "h",                        /* unknown param for target 'theta_s_100' */
                                         "Omega_ini_dcdm",           /* unknown param for target 'Omega_dcdmd' */
                                         "omega_ini_dcdm",           /* unknown param for target 'omega_dcdmdr' */
-                                        "scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
+                                        // "scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
                                         "Omega_dcdmdr",             /* unknown param for target 'Omega_ini_dcdm' */
                                         "omega_dcdmdr"};             /* unknown param for target 'omega_ini_dcdm' */
 
@@ -545,7 +545,7 @@ int input_shooting(struct file_content * pfc,
                                         cs_thermodynamics, /* computation stage for target 'theta_s_100' */
                                         cs_background,     /* computation stage for target 'Omega_dcdmdr' */
                                         cs_background,     /* computation stage for target 'omega_dcdmdr' */
-                                        cs_background,     /* computation stage for target 'Omega_scf' */
+                                        // cs_background,     /* computation stage for target 'Omega_scf' */
                                         cs_background,     /* computation stage for target 'Omega_ini_dcdm' */
                                         cs_background};     /* computation stage for target 'omega_ini_dcdm' */
 
@@ -898,7 +898,7 @@ int input_needs_shooting_for_target(struct file_content * pfc,
   switch (target_name){
   case Omega_dcdmdr:
   case omega_dcdmdr:
-  case Omega_scf:
+//   case Omega_scf:
   case Omega_ini_dcdm:
   case omega_ini_dcdm:
     /* Check that Omega's or omega's are nonzero: */
@@ -1234,24 +1234,24 @@ int input_get_guess(double *xguess,
       xguess[index_guess] = pfzw->target_value[index_guess]/ba.h/ba.h/a_decay;
       dxdy[index_guess] = 1./a_decay/ba.h/ba.h;
       break;
-    case Omega_scf:
-      /* *
-       * This guess is arbitrary, something nice using WKB should be implemented.
-       * Version 2 uses a fit
-       * xguess[index_guess] = 1.77835*pow(ba.Omega0_scf,-2./7.);
-       * dxdy[index_guess] = -0.5081*pow(ba.Omega0_scf,-9./7.)`;
-       * Version 3: use attractor solution
-       * */
-      if (ba.scf_tuning_index == 0){
-        xguess[index_guess] = sqrt(3.0/ba.Omega0_scf);
-        dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5);
-      }
-      else{
-        /* Default: take the passed value as xguess and set dxdy to 1. */
-        xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
-        dxdy[index_guess] = 1.;
-      }
-      break;
+    // case Omega_scf:
+    //   /* *
+    //    * This guess is arbitrary, something nice using WKB should be implemented.
+    //    * Version 2 uses a fit
+    //    * xguess[index_guess] = 1.77835*pow(ba.Omega0_scf,-2./7.);
+    //    * dxdy[index_guess] = -0.5081*pow(ba.Omega0_scf,-9./7.)`;
+    //    * Version 3: use attractor solution
+    //    * */
+    //   if (ba.scf_tuning_index == 0){
+    //     xguess[index_guess] = sqrt(3.0/ba.Omega0_scf);
+    //     dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5);
+    //   }
+    //   else{
+    //     /* Default: take the passed value as xguess and set dxdy to 1. */
+    //     xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
+    //     dxdy[index_guess] = 1.;
+    //   }
+    //   break;
     case omega_ini_dcdm:
       Omega0_dcdmdr = 1./(ba.h*ba.h);
     case Omega_ini_dcdm:
@@ -1474,10 +1474,10 @@ int input_try_unknown_parameters(double * unknown_parameter,
         rho_dr_today = 0.;
       output[i] = (rho_dcdm_today+rho_dr_today)/(ba.H0*ba.H0)-pfzw->target_value[i]/ba.h/ba.h;
       break;
-    case Omega_scf:
-      /** In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
-      output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)-ba.Omega0_scf;
-      break;
+    // case Omega_scf:
+    //   /** In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
+    //   output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)-ba.Omega0_scf;
+    //   break;
     case Omega_ini_dcdm:
     case omega_ini_dcdm:
       rho_dcdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_dcdm];
@@ -2084,6 +2084,23 @@ int input_read_parameters_general(struct file_content * pfc,
     else{
       class_stop(errmsg,
                  "You specified the gauge as '%s'. It has to be one of {'newtonian','synchronous'}.");
+    }
+  }
+
+  class_call(parser_read_string(pfc,"output_gauge",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_) {
+    if ((strstr(string1,"newtonian") != NULL) || (strstr(string1,"Newtonian") != NULL) || (strstr(string1,"new") != NULL)) {
+      ppt->output_gauge = newtonian;
+    }
+    else if ((strstr(string1,"synchronous") != NULL) || (strstr(string1,"sync") != NULL) || (strstr(string1,"Synchronous") != NULL)) {
+      ppt->output_gauge = synchronous;
+    }
+    else{
+      class_stop(errmsg,
+                 "You specified the output gauge as '%s'. It has to be one of {'newtonian','synchronous'}.");
     }
   }
 
@@ -3299,56 +3316,71 @@ int input_read_parameters_species(struct file_content * pfc,
   if (pba->Omega0_scf != 0.){
 
     /** 8.b.1) Additional SCF parameters */
-    /* Read */
-    class_call(parser_read_list_of_doubles(pfc,
-                                           "scf_parameters",
-                                           &(pba->scf_parameters_size),
-                                           &(pba->scf_parameters),
-                                           &flag1,
-                                           errmsg),
-               errmsg,errmsg);
+    class_read_double("n_scf", pba->n_scf);
+    class_read_double("f_scf", pba->f_scf);
+    class_read_double("m_scf", pba->m_scf_eV);
+    pba->m_scf = pba->m_scf_eV * _eV_over_inv_Mpc_;
+    class_read_double("thetai_scf", pba->thetai_scf);
+    class_read_double("dthetai_scf", pba->dthetai_scf);
+    pba->phi_ini_scf = pba->thetai_scf * pba->f_scf / _m_pl_reduced_over_eV_;
+    pba->phi_prime_ini_scf = pba->dthetai_scf;  // FIXME: units
+    class_read_double("scf_mode_switch_m_over_H", pba->scf_mode_switch_m_over_H);
+    ppt->has_scf = _TRUE_;
+    pba->scf_gravitates = _TRUE_;
+    class_read_flag("scf_has_perturbations", ppt->has_scf);
+    class_read_flag("scf_gravitates", pba->scf_gravitates);
+    ppt->scf_gravitates = pba->scf_gravitates;
 
-    /** 8.b.2) SCF initial conditions from attractor solution */
-    /* Read */
-    class_call(parser_read_string(pfc,
-                                  "attractor_ic_scf",
-                                  &string1,
-                                  &flag1,
-                                  errmsg),
-               errmsg,
-               errmsg);
-    /* Complete set of parameters */
-    if (flag1 == _TRUE_){
-      if (string_begins_with(string1,'y') || string_begins_with(string1,'Y')){
-        pba->attractor_ic_scf = _TRUE_;
-      }
-      else {
-        pba->attractor_ic_scf = _FALSE_;
-        /* Test */
-        class_test(pba->scf_parameters_size<2,
-                   errmsg,
-                   "Since you are not using attractor initial conditions, you must specify phi and its derivative phi' as the last two entries in scf_parameters. See explanatory.ini for more details.");
-        pba->phi_ini_scf = pba->scf_parameters[pba->scf_parameters_size-2];
-        pba->phi_prime_ini_scf = pba->scf_parameters[pba->scf_parameters_size-1];
-      }
+    class_test((ppt->has_scf==_TRUE_ && ppt->gauge != synchronous),
+               errmsg, "must use synchronous gauge for scf perturbations");
+
+    class_call(parser_read_string(pfc,"scf_eos_type",&string1,&flag1,errmsg),
+                errmsg,
+                errmsg);
+    if (flag1 == _TRUE_)
+    {
+        if (strstr(string1,"standard") != NULL)
+        {
+            pba->scf_eos_type = scf_eos_standard;
+        }
+        else if (strstr(string1,"H_improvement") != NULL)
+        {
+            pba->scf_eos_type = scf_eos_H_improvement;
+        }
+        else if (strstr(string1,"improved") != NULL)
+        {
+            pba->scf_eos_type = scf_eos_improved;
+        }
+        else
+        {
+            class_stop(errmsg,"incomprehensible input '%s' for the field 'scf_eos_type'",string1);
+        }
     }
-
-    /** 8.b.3) SCF tuning parameter */
-    /* Read */
-    class_read_int("scf_tuning_index",pba->scf_tuning_index);
-    /* Test */
-    class_test(pba->scf_tuning_index >= pba->scf_parameters_size,
-               errmsg,
-               "Tuning index 'scf_tuning_index' (%d) is larger than the number of entries (%d) in 'scf_parameters'.",
-               pba->scf_tuning_index,pba->scf_parameters_size);
-
-    /** 8.b.4) Shooting parameter */
-    /* Read */
-    class_read_double("scf_shooting_parameter",pba->scf_parameters[pba->scf_tuning_index]);
-    /* Complete set of parameters */
-    scf_lambda = pba->scf_parameters[0];
-    if ((fabs(scf_lambda) < 3.)&&(pba->background_verbose>1)){
-      printf("'scf_lambda' = %e < 3 won't be tracking (for exp quint) unless overwritten by tuning function.",scf_lambda);
+    class_call(parser_read_string(pfc,"scf_cs_type",&string1,&flag1,errmsg),
+                errmsg,
+                errmsg);
+    if (flag1 == _TRUE_)
+    {
+        if (strstr(string1,"standard") != NULL)
+        {
+            ppt->scf_cs_type = scf_cs_standard;
+        }
+        else if (strstr(string1,"H_improvement") != NULL)
+        {
+            ppt->scf_cs_type = scf_cs_H_improvement;
+        }
+        else if (strstr(string1,"improved") != NULL)
+        {
+            ppt->scf_cs_type = scf_cs_improved;
+        }
+        else if (strstr(string1,"phi") != NULL)
+        {
+            ppt->scf_cs_type = scf_cs_phi;
+        }
+        else
+        {
+            class_stop(errmsg,"incomprehensible input '%s' for the field 'scf_cs_type'",string1);
+        }
     }
   }
 
@@ -5665,6 +5697,7 @@ int input_default_params(struct background *pba,
 
   /** 4.a) Gauge */
   ppt->gauge=synchronous;
+  ppt->output_gauge=newtonian;
   /** 4.b) N-body gauge */
   ppt->has_Nbody_gauge_transfers = _FALSE_;
 
@@ -5812,6 +5845,17 @@ int input_default_params(struct background *pba,
   /** 9) Dark energy contributions */
   pba->Omega0_fld = 0.;
   pba->Omega0_scf = 0.;
+  // more scalar field parameters
+  pba->n_scf = 1.;
+  pba->f_scf = 0.;
+  pba->m_scf_eV = 0.;
+  pba->m_scf = pba->m_scf_eV * _eV_over_inv_Mpc_;
+  pba->thetai_scf = 1.;
+  pba->dthetai_scf = 0.;
+
+  pba->scf_mode_switch_m_over_H = 1000.;
+  pba->scf_eos_type = scf_eos_improved;
+
   pba->Omega0_lambda = 1.-pba->Omega0_k-pba->Omega0_g-pba->Omega0_ur-pba->Omega0_b-pba->Omega0_cdm-pba->Omega0_ncdm_tot-pba->Omega0_dcdmdr - pba->Omega0_idr -pba->Omega0_idm;
   /** 8.a) Omega fluid */
   /** 8.a.1) PPF approximation */
@@ -5833,6 +5877,7 @@ int input_default_params(struct background *pba,
   pba->attractor_ic_scf = _TRUE_;
   pba->phi_ini_scf = 1;                // MZ: initial conditions are as multiplicative
   pba->phi_prime_ini_scf = 1;          //     factors of the radiation attractor values
+  ppt->scf_cs_type = scf_cs_improved;
   /** 9.b.3) Tuning parameter */
   pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */
