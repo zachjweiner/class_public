@@ -1400,6 +1400,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
     if (input_verbose>2)
       printf("Stage 1: background\n");
     ba.background_verbose = 0;
+    pr.background_Nloga = MIN(pr.background_Nloga, 10000);
     class_call_except(background_init(&pr,&ba), ba.error_message, errmsg, background_free_input(&ba);thermodynamics_free_input(&th);perturbations_free_input(&pt););
   }
 
@@ -3326,8 +3327,11 @@ int input_read_parameters_species(struct file_content * pfc,
     }
   }
 
+  class_call(parser_read_double(pfc,"f_scf",&param2,&flag2,errmsg),
+             errmsg,
+             errmsg);
   /** 8.b) If Omega scalar field (SCF) is different from 0 */
-  if (pba->Omega0_scf != 0.){
+  if (pba->Omega0_scf > 0. || ((flag2 == _TRUE_) && (param2 > 0.))){
 
     /** 8.b.1) Additional SCF parameters */
     class_read_double("n_scf", pba->n_scf);
