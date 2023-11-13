@@ -525,7 +525,8 @@ int input_shooting(struct file_content * pfc,
                                        "theta_s_100",
                                        "Omega_dcdmdr",
                                        "omega_dcdmdr",
-                                    //    "Omega_scf",
+                                       "Omega_scf",
+                                       "omega_scf",
                                        "Omega_ini_dcdm",
                                        "omega_ini_dcdm"};
 
@@ -534,7 +535,8 @@ int input_shooting(struct file_content * pfc,
                                         "h",                        /* unknown param for target 'theta_s_100' */
                                         "Omega_ini_dcdm",           /* unknown param for target 'Omega_dcdmd' */
                                         "omega_ini_dcdm",           /* unknown param for target 'omega_dcdmdr' */
-                                        // "scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
+                                        "f_scf",   /* unknown param for target 'Omega_scf' */
+                                        "f_scf",   /* unknown param for target 'omega_scf' */
                                         "Omega_dcdmdr",             /* unknown param for target 'Omega_ini_dcdm' */
                                         "omega_dcdmdr"};             /* unknown param for target 'omega_ini_dcdm' */
 
@@ -545,7 +547,8 @@ int input_shooting(struct file_content * pfc,
                                         cs_thermodynamics, /* computation stage for target 'theta_s_100' */
                                         cs_background,     /* computation stage for target 'Omega_dcdmdr' */
                                         cs_background,     /* computation stage for target 'omega_dcdmdr' */
-                                        // cs_background,     /* computation stage for target 'Omega_scf' */
+                                        cs_background,     /* computation stage for target 'Omega_scf' */
+                                        cs_background,     /* computation stage for target 'omega_scf' */
                                         cs_background,     /* computation stage for target 'Omega_ini_dcdm' */
                                         cs_background};     /* computation stage for target 'omega_ini_dcdm' */
 
@@ -898,7 +901,8 @@ int input_needs_shooting_for_target(struct file_content * pfc,
   switch (target_name){
   case Omega_dcdmdr:
   case omega_dcdmdr:
-//   case Omega_scf:
+  case Omega_scf:
+  case omega_scf:
   case Omega_ini_dcdm:
   case omega_ini_dcdm:
     /* Check that Omega's or omega's are nonzero: */
@@ -1234,24 +1238,17 @@ int input_get_guess(double *xguess,
       xguess[index_guess] = pfzw->target_value[index_guess]/ba.h/ba.h/a_decay;
       dxdy[index_guess] = 1./a_decay/ba.h/ba.h;
       break;
-    // case Omega_scf:
-    //   /* *
-    //    * This guess is arbitrary, something nice using WKB should be implemented.
-    //    * Version 2 uses a fit
-    //    * xguess[index_guess] = 1.77835*pow(ba.Omega0_scf,-2./7.);
-    //    * dxdy[index_guess] = -0.5081*pow(ba.Omega0_scf,-9./7.)`;
-    //    * Version 3: use attractor solution
-    //    * */
-    //   if (ba.scf_tuning_index == 0){
-    //     xguess[index_guess] = sqrt(3.0/ba.Omega0_scf);
-    //     dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5);
-    //   }
-    //   else{
-    //     /* Default: take the passed value as xguess and set dxdy to 1. */
-    //     xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
-    //     dxdy[index_guess] = 1.;
-    //   }
-    //   break;
+    case Omega_scf:
+    case omega_scf:
+        // ba.Omega0_scf set the same in both cases
+        double Wm = ba.Omega0_cdm+ba.Omega0_idm+ba.Omega0_dcdmdr+ba.Omega0_b;
+        double Wr = ba.Omega0_g + ba.Omega0_ur + ba.Omega0_idr;
+        double target_Wscf = ba.Omega0_scf;
+        double H_eq = sqrt(2.) * ba.H0 * Wm * Wm / pow(Wr, 1.5);
+        double Wscf_f_Mpl = Wm * (1. + pow(2., 0.25) * pow(ba.m_scf / H_eq, 0.5));
+        xguess[index_guess] = sqrt(target_Wscf / Wscf_f_Mpl) * _m_pl_reduced_over_eV_;
+        dxdy[index_guess] = 0.5 / sqrt(target_Wscf * ba.Omega0_scf) * _m_pl_reduced_over_eV_;
+      break;
     case omega_ini_dcdm:
       Omega0_dcdmdr = 1./(ba.h*ba.h);
     case Omega_ini_dcdm:
@@ -1474,10 +1471,11 @@ int input_try_unknown_parameters(double * unknown_parameter,
         rho_dr_today = 0.;
       output[i] = (rho_dcdm_today+rho_dr_today)/(ba.H0*ba.H0)-pfzw->target_value[i]/ba.h/ba.h;
       break;
-    // case Omega_scf:
-    //   /** In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
-    //   output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)-ba.Omega0_scf;
-    //   break;
+    case Omega_scf:
+    case omega_scf:
+      /** In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
+      output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)-ba.Omega0_scf;
+      break;
     case Omega_ini_dcdm:
     case omega_ini_dcdm:
       rho_dcdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_dcdm];
@@ -3182,6 +3180,26 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->Omega0_cdm = ppr->Omega0_cdm_min_synchronous;
   }
 
+  class_call(parser_read_double(pfc,"Omega_scf",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  class_call(parser_read_double(pfc,"omega_scf",&param2,&flag2,errmsg),
+             errmsg,
+             errmsg);
+  /* Test */
+  class_test(
+    ((flag1 == _TRUE_) && (flag2 == _TRUE_)),
+    errmsg,
+    "You can only enter one of 'Omega_scf' and 'omega_scf'."
+  );
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_){
+    pba->Omega0_scf = param1;
+  }
+  else if (flag2 == _TRUE_){
+    pba->Omega0_scf = param2/pba->h/pba->h;
+  }
+  flag3 = (flag1 == _TRUE_) || (flag2 == _TRUE_) ? _TRUE_ : _FALSE_;
   /* At this point all the species should be set, and used for the budget equation below */
 
   /** 8) Dark energy
@@ -3194,14 +3212,11 @@ int input_read_parameters_species(struct file_content * pfc,
   class_call(parser_read_double(pfc,"Omega_fld",&param2,&flag2,errmsg),
              errmsg,
              errmsg);
-  class_call(parser_read_double(pfc,"Omega_scf",&param3,&flag3,errmsg),
-             errmsg,
-             errmsg);
   /* Test */
-  class_test((flag1 == _TRUE_) && (flag2 == _TRUE_) && ((flag3 == _FALSE_) || (param3 >= 0.)),
+  class_test((flag1 == _TRUE_) && (flag2 == _TRUE_) && ((flag3 == _FALSE_) || (pba->Omega0_scf >= 0.)),
              errmsg,
              "'Omega_Lambda' or 'Omega_fld' must be left unspecified, except if 'Omega_scf' is set and < 0.");
-  class_test(((flag1 == _FALSE_)||(flag2 == _FALSE_)) && ((flag3 == _TRUE_) && (param3 < 0.)),
+  class_test(((flag1 == _FALSE_)||(flag2 == _FALSE_)) && ((flag3 == _TRUE_) && (pba->Omega0_scf < 0.)),
              errmsg,
              "You have entered 'Omega_scf' < 0 , so you have to specify both 'Omega_lambda' and 'Omega_fld'.");
   /* Complete set of parameters
@@ -3233,7 +3248,6 @@ int input_read_parameters_species(struct file_content * pfc,
     Omega_tot += pba->Omega0_fld;
   }
   if ((flag3 == _TRUE_) && (param3 >= 0.)){
-    pba->Omega0_scf = param3;
     Omega_tot += pba->Omega0_scf;
   }
   /* Step 2 */
