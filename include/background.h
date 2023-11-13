@@ -33,6 +33,12 @@ enum vecback_format {short_info, normal_info, long_info};
 
 enum interpolation_method {inter_normal, inter_closeby};
 
+enum scf_integration_mode {klein_gordon, klein_gordon_and_fluid, scalar_as_fluid};
+enum scf_equation_of_state_type {scf_eos_standard, scf_eos_improved, scf_eos_H_improvement};
+
+double scf_equation_of_state(struct background *pba, double *pvecback);
+double scf_equation_of_state_prime(struct background *pba, double *pvecback);
+
 /**
  * background structure containing all the background information that
  * other modules need to know.
@@ -127,6 +133,12 @@ struct background
   enum varconst_dependence varconst_dep; /**< dependence of the varying fundamental constants as a function of time */
   double varconst_transition_redshift; /**< redshift of transition between varied fundamental constants and normal fundamental constants in the 'varconst_instant' case*/
 
+  enum scf_integration_mode scf_mode;
+  short scf_gravitates;
+  double scalarfa_switch_tau;
+  double rho_scf_cs_at_switch;
+  double phi_scf_cs_at_switch[2];
+  double phi_dot_scf_cs_at_switch[2];
   //@}
 
 
@@ -259,6 +271,7 @@ struct background
   int index_bi_rho_dcdm;/**< {B} dcdm density */
   int index_bi_rho_dr;  /**< {B} dr density */
   int index_bi_rho_fld; /**< {B} fluid density */
+  int index_bi_rho_scf;
   int index_bi_phi_scf;       /**< {B} scalar field value */
   int index_bi_phi_prime_scf; /**< {B} scalar field derivative wrt conformal time */
 
@@ -316,6 +329,15 @@ struct background
   double * factor_ncdm; /**< List of normalization factors for calculating energy density etc.*/
 
   //@}
+
+  double n_scf;
+  double f_scf;
+  double m_scf_eV;
+  double m_scf;
+  double thetai_scf;
+  double dthetai_scf;
+  double scf_mode_switch_m_over_H;
+  enum scf_equation_of_state_type scf_eos_type;
 
   /** @name - technical parameters */
 
@@ -565,6 +587,14 @@ extern "C" {
                  double phi
                  );
 
+  double scf_matching_condition_value(struct background *pba, double *pvecback);
+
+  void scf_match_to_cos_sin(
+    struct background *pba, double *pvecback, double *phi_cs, double *dphi_cs
+  );
+
+  double scf_match_to_fluid_energy_density(struct background *pba, double *pvecback);
+
   /** Coupling between scalar field and matter **/
   double Q_scf(
                struct background *pba,
@@ -596,8 +626,14 @@ extern "C" {
 /* parameters entering in Stefan-Boltzmann constant sigma_B */
 #define _k_B_ 1.3806504e-23
 #define _h_P_ 6.62606896e-34
+#define _hbar_ (_h_P_ / 2 / _PI_)
 /* remark: sigma_B = 2 pi^5 k_B^4 / (15h^3c^2) = 5.670400e-8
    = Stefan-Boltzmann constant in W/m^2/K^4 = Kg/K^4/s^3 */
+
+// m_pl = sqrt(hbar * c / G) * (c^2 / e) / sqrt(8 * pi)
+#define _m_pl_reduced_over_eV_ 2.4353234600842883e+27
+#define _eV_over_inv_Mpc_ (_eV_ / _hbar_ / _c_ * _Mpc_over_m_)
+#define _m_pl_reduced_over_inv_Mpc_ (_m_pl_reduced_over_eV_ / _eV_over_inv_Mpc_)
 
 //@}
 
