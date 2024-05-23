@@ -36,9 +36,6 @@ enum interpolation_method {inter_normal, inter_closeby};
 enum scf_integration_mode {klein_gordon, klein_gordon_and_fluid, scalar_as_fluid};
 enum scf_equation_of_state_type {scf_eos_standard, scf_eos_improved, scf_eos_H_improvement};
 
-double scf_equation_of_state(struct background *pba, double *pvecback);
-double scf_equation_of_state_prime(struct background *pba, double *pvecback);
-
 /**
  * background structure containing all the background information that
  * other modules need to know.
@@ -593,6 +590,10 @@ extern "C" {
                  struct background *pba,
                  double phi
                  );
+
+  double scf_equation_of_state(struct background *pba, double *pvecback);
+
+  double scf_equation_of_state_prime(struct background *pba, double *pvecback);
 
   double scf_matching_condition_value(struct background *pba, double *pvecback);
 

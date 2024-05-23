@@ -4,6 +4,7 @@
 #define __PERTURBATIONS__
 
 #include "thermodynamics.h"
+#include "background.h"
 
 #define _scalars_ ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars))
 #define _vectors_ ((ppt->has_vectors == _TRUE_) && (index_md == ppt->index_md_vectors))
