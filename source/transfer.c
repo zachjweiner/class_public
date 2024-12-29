@@ -3284,7 +3284,8 @@ int transfer_compute_for_each_l(
 
     if (use_limber == _TRUE_) {
 
-      class_call(transfer_limber(ptr,
+      class_call(transfer_limber(ppr,
+                                 ptr,
                                  ptw,
                                  index_md,
                                  index_q,
@@ -3604,6 +3605,7 @@ int transfer_integrate(
  */
 
 int transfer_limber(
+                    struct precision * ppr,
                     struct transfer * ptr,
                     struct transfer_workspace * ptw,
                     int index_md,
@@ -3625,13 +3627,20 @@ int transfer_limber(
   double tau0_minus_tau_limber=0.;
   double IPhiFlat = 0.;
 
+  double l_eff = l + 1./2.;
+  if (ppr->lcmb_use_full_limber_ell == _TRUE_)
+  {
+      // implemented for flat case only
+      l_eff = sqrt(l*(l+1.));
+  }
+
   if (radial_type == SCALAR_TEMPERATURE_0) {
 
     /** - get k, l and infer tau such that k(tau0-tau)=l+1/2;
         check that tau is in appropriate range */
 
     if (ptw->sgnK == 0) {
-      tau0_minus_tau_limber = (l+0.5)/q;
+      tau0_minus_tau_limber = l_eff/q;
     }
     else if (ptw->sgnK == 1) {
       x_limber = asin(sqrt(l*(l+1.))/q*sqrt(ptw->K));
@@ -3661,12 +3670,16 @@ int transfer_limber(
         = source*[tau0-tau] * \f$ \sqrt{\pi/(2l+1)}/(l+1/2)\f$
     */
 
-    IPhiFlat = sqrt(_PI_/(2.*l))*(1.-0.25/l+1./32./(l*l));
+    IPhiFlat = sqrt(_PI_/(2.*l))*(1.-0.25/l+3./32./(l*l));
+    if (ppr->lcmb_use_full_limber_ell == _TRUE_)
+    {
+        IPhiFlat = sqrt(_PI_/(2.*l + 1.));
+    }
 
     *trsf = IPhiFlat*S;
 
     if (ptw->sgnK == 0) {
-      *trsf /= (l+0.5);
+      *trsf /= l_eff;
     }
     else {
       *trsf *= pow(1.-ptw->K*l*l/q/q,-1./4.)/(tau0_minus_tau_limber*q);

@@ -487,6 +487,8 @@ class_precision_parameter(transfer_neglect_delta_k_T_b,double,0.1)  /**< same fo
 
 class_precision_parameter(transfer_neglect_late_source,double,400.0)  /**< value of l below which the CMB source functions can be neglected at late time, excepted when there is a Late ISW contribution */
 
+class_precision_parameter(lcmb_use_full_limber_ell,int,_FALSE_) /**< whether to use sqrt(l*(l + 1)) rather than l + 1/2 in limber approximations. currently only implemented in flat lcmb calculation. */
+
 class_precision_parameter(l_switch_limber,double,10.) /**< when to use the Limber approximation for project gravitational potential cl's */
 // For density Cl, we recommend not to use the Limber approximation
 // at all, and hence to put here a very large number (e.g. 10000); but
